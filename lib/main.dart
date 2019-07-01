@@ -1,26 +1,35 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:simple_auth/simple_auth.dart' as simpleAuth;
+import 'package:simple_auth_flutter/simple_auth_flutter.dart';
+// import 'package:simple_auth_flutter_example/api_definitions/youtubeApi.dart';
+import 'package:rusty_firecracker/keycloak.dart';
+import 'package:http/http.dart' as http;
 
-void main() => runApp(MyApp());
+void main() => runApp(new MyApp());
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => new _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  initState() {
+    super.initState();
+    SimpleAuthFlutter.init(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
+    return new MaterialApp(
+      title: 'SimpleAuth Demo',
+      theme: new ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: new MyHomePage(title: 'SimpleAuth Home Page'),
     );
   }
 }
@@ -40,72 +49,167 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _MyHomePageState createState() => new _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
 
+// final KeycloakConfig keycloakApi = new KeycloakConfig(
+      // "identifier",
+      // "client-id",
+      // "client-secret",
+      // "tokenURL",
+      // "authURL",
+//       "com.me.myapp://redirect",
+//       scopes: ["openid"]);
+
+
+  final simpleAuth.AmazonApi amazonApi = new simpleAuth.AmazonApi(
+      "amazon",
+      "amzn1.application-oa2-client.848f75b20206455097cde6b63ca53dec",
+      "759db00c1a71fe308d55ce42387c510af8337a5b3aa402a835b77dc552766c3a",
+      "http://localhost",
+      scopes: ["clouddrive:read", "clouddrive:write"]);
+
+
+
+  // final youtubeApi = new YoutubeApi("Youtube");
   @override
   Widget build(BuildContext context) {
+    SimpleAuthFlutter.context = context;
+
+
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
+    return new Scaffold(
+      appBar: new AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: new Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
+      body: ListView(
+        children: <Widget>[
+           ListTile(
+            leading: Icon(Icons.launch),
+            title: Text('Login to Keycloak'),
+            onTap: () {
+              login(keycloakApi);
+            },
+          ),
+           ListTile(
+            leading: Icon(Icons.launch),
+            title: Text('Login'),
+            onTap: () {
+              login(amazonApi);
+            },
+          ),
+
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+
+  void showError(dynamic ex) {
+    showMessage(ex.toString());
+  }
+
+  void showMessage(String text) {
+    var alert = new AlertDialog(content: new Text(text), actions: <Widget>[
+      new FlatButton(
+          child: const Text("Ok"),
+          onPressed: () {
+            Navigator.pop(context);
+          })
+    ]);
+    showDialog(context: context, builder: (BuildContext context) => alert);
+  }
+
+  void login(simpleAuth.AuthenticatedApi api) async {
+    try {
+      var success = await api.authenticate();
+      showMessage("Logged in success: $success");
+    } catch (e) {
+      showError(e);
+    }
+  }
+
+  void logout(simpleAuth.AuthenticatedApi api) async {
+    await api.logOut();
+    showMessage("Logged out");
+  }
+}
+
+
+class KeycloakAuth {
+  KeycloakAuth._privateConstructor();
+
+  static final KeycloakAuth _instance = KeycloakAuth._privateConstructor();
+
+  static KeycloakAuth get instance {
+    return _instance;
+  }
+
+  // ignore: non_constant_identifier_names
+  final KeycloakConfig KC_OAuth = new KeycloakConfig(
+      "identifier",
+      "client-id",
+      "client-secret",
+      "tokenURL",
+      "authURL",
+      "com.me.myapp://redirect",
+      scopes: ["openid"]);
+
+  Future<http.Response> logout() async {
+    KC_OAuth.logOut();
+    final response = await KC_OAuth.httpClient.get(
+        'endSessionEndpoint');
+    return response;
+  }
+
+  Map<String, String> getAuthHeaders() {
+    return {'Authorization': 'Bearer ${KC_OAuth.currentOauthAccount.token}'};
+  }
+
+  Future<KeycloakUser> getKeycloakUser() async {
+    final response = await http.get(
+        "userInfoEndpoint",
+        headers: getAuthHeaders());
+    if (response.statusCode == 200) {
+      return KeycloakUser.fromJson(json.decode(response.body));
+    } else
+      return null;
+  }
+}
+
+class KeycloakUser {
+  String _sub;
+  bool _emailVerified;
+  String _name;
+  String _preferredUsername;
+  String _givenName;
+  String _familyName;
+  String _email;
+
+  KeycloakUser.fromJson(Map<String, dynamic> parsedJson) {
+    _sub = parsedJson['sub'];
+    _emailVerified = parsedJson['email_verified'];
+    _name = parsedJson['name'];
+    _preferredUsername = parsedJson['preferred_username'];
+    _givenName = parsedJson['given_name'];
+    _familyName = parsedJson['family_name'];
+    _email = parsedJson['email'];
+  }
+
+  String get sub => _sub;
+  bool get emailVerified => _emailVerified;
+  String get name => _name;
+  String get preferredUsername => _preferredUsername;
+  String get givenName => _givenName;
+  String get familyName => _familyName;
+  String get email => _email;
 }
